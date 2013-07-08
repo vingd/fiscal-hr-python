@@ -468,6 +468,9 @@ class CertValidatingHTTPSConnection(httplib.HTTPConnection):
         if self.cert_reqs & ssl.CERT_REQUIRED:
             cert = self.sock.getpeercert()
             hostname = self.host.split(':', 0)[0]
+            # Fix for invalid subjectAltName in cis.porezna-uprava.hr certificate
+            if 'subjectAltName' in cert:
+                del cert['subjectAltName']
             match_hostname(cert, hostname)
 
 
