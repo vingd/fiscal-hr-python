@@ -138,7 +138,7 @@ class Fiscal():
         '''Send and verify Fiskal CIS echo request'''
 
         reply = self.client.service.echo(msg)
-        if len(reply) == 2 and reply[0] == 200 and reply[1] == msg:
+        if reply == msg:
             print("Echo test successful with reply: %s" % (reply, ))
         else:
             print("Echo test failed with reply: %s" % (reply, ))
