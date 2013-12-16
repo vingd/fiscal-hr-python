@@ -1,5 +1,4 @@
 backports.ssl-match-hostname>=3.2a3
-distribute
 libxml2-python>=2.6.21
 pyOpenSSL>=0.13
 pytz
