@@ -23,7 +23,7 @@ setup(
             'fiskalizacija_service/schema/*.xsd',
         ],
     },
-    dependency_links=['ftp://xmlsoft.org/libxml2/python/libxml2-python-2.6.21.tar.gz'],
+    dependency_links=['https://github.com/vingd/libxml2-python/archive/libxml2-python-2.7.8.zip'],
     install_requires=[i.strip() for i in open('requirements.txt').readlines()],
     platforms=['OS Independent'],
     classifiers=[
