@@ -10,6 +10,13 @@ Installation
 
 ::
 
+    pip install --process-dependency-links FiscalHr
+
+or
+
+::
+
+    pip install https://github.com/vingd/libxml2-python/archive/libxml2-python-2.7.8.zip
     pip install FiscalHr
 
 ======================
