@@ -40,7 +40,7 @@ class Fiscal():
 
 
     def __init__(self, key_path, cert_path, key_passphrase=None,
-                 ca_path=None, cis_cert_cn=None,
+                 ca_path=None, cis_ca_path=None, cis_cert_cn=None,
                  wsdl_location=None, test=False):
 
         self.default_ns = 'fis'
@@ -52,8 +52,14 @@ class Fiscal():
 
         if not ca_path:
             ca_path = resource_path + 'certs/'
-            ca_path += 'democacert.pem' if test else 'FinaRDCChain.pem'
+            ca_path += 'demo2014_chain.pem' if test else 'FinaRDCChain.pem'
             ca_path = resource_filename(__name__, ca_path)
+
+        # FIX: cis still uses old CA, they shall probably switch to `ca_path`
+        if not cis_ca_path:
+            cis_ca_path = resource_path + 'certs/'
+            cis_ca_path += 'old_democacert.pem' if test else 'old_RDCca.pem'
+            cis_ca_path = resource_filename(__name__, cis_ca_path)
 
         if not cis_cert_cn:
             cis_cert_cn = 'fiskalcistest' if test else 'fiskalcis'
@@ -66,6 +72,7 @@ class Fiscal():
         xmldsig_plugin = XmlDSigMessagePlugin(key_path, cert_path,
                                               key_passphrase=key_passphrase,
                                               ca_path=ca_path,
+                                              cis_ca_path=cis_ca_path,
                                               cis_cert_cn=cis_cert_cn)
 
         suds_options = {
@@ -270,13 +277,14 @@ class XmlDSigMessagePlugin(MessagePlugin):
     RE_XML_HEADER = re.compile(r'<\?xml\s+.*?\?>', flags=re.I|re.S)
 
     def __init__(self, key_path, cert_path, key_passphrase=None,
-                 ca_path=None, cis_cert_cn=None):
+                 ca_path=None, cis_ca_path=None, cis_cert_cn=None):
 
         self.key_path = key_path
         self.cert_path = cert_path
         self.key_passphrase = key_passphrase
 
         self.ca_path = ca_path
+        self.cis_ca_path = cis_ca_path
         self.cis_cert_cn = cis_cert_cn
 
     def sending(self, context):
@@ -336,21 +344,40 @@ class XmlDSigMessagePlugin(MessagePlugin):
     def received(self, context):
         '''Verifies XML signature of received message'''
 
-        def _verify_cn(payload, cis_cert_cn):
-            '''Verify signature certificate common name'''
+        def _extract_keyinfo_cert(payload):
+            '''Extract the signing certificate from KeyInfo.'''
 
             cert_der = payload.getChild('Signature')
             cert_der = cert_der.getChild('KeyInfo')
             cert_der = cert_der.getChild('X509Data')
             cert_der = cert_der.getChild('X509Certificate').getText().strip()
             cert_der = cert_der.decode('base64')
-            cert = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_der)
+            return cert_der
+
+        def _verify_cn(cert, cis_cert_cn):
+            '''Verify signature certificate common name'''
+
             common_name = cert.get_subject().commonName
 
             if common_name != cis_cert_cn:
                 raise Exception('Invalid certificate common name in response: '
                                 '%s != %s' % (cis_cert_cn, common_name))
 
+        def _verify_cert(cert, issuer_cert_path):
+            '''Verify cert was issued by issuer_cert_path.'''
+
+            try:
+                store = crypto.X509Store()
+
+                with open(issuer_cert_path) as f:
+                    _ca = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
+                    store.add_cert(_ca)
+
+                store_ctx = crypto.X509StoreContext(store, cert)
+                store_ctx.verify_certificate()
+
+            except Exception as e:
+                raise Exception('CIS certificate not issued by CIS CA')
 
         def _fault(code, msg):
             '''Generate fault XML'''
@@ -369,29 +396,44 @@ class XmlDSigMessagePlugin(MessagePlugin):
         valid_signature = False
 
         try:
-            if not self.ca_path:
+            if not self.cis_ca_path:
                 raise Exception('Certificate Authority not defined')
 
             reply_element = Parser().parse(string=context.reply).root()
             body = reply_element.getChild('Body')
             payload = body[0]
             qname = payload.qname()
+            cert_der = _extract_keyinfo_cert(payload)
+            cert = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_der)
 
             if 'Echo' in qname or 'Fault' in qname:
                 LOGGER.warning('Not verifying certificate for qname: %s', qname)
                 return
 
             if self.cis_cert_cn:
-                _verify_cn(payload, self.cis_cert_cn)
+                _verify_cn(cert, self.cis_cert_cn)
             else:
                 LOGGER.warning('CIS certificate common name not configured')
+
+            # explicit signing cert CA check
+            if self.cis_ca_path:
+                _verify_cert(cert, self.cis_ca_path)
+            else:
+                LOGGER.warning('CIS certificate CA not configured')
 
             reply = self.DTD_TEST_ID % qname
             reply += self.RE_XML_HEADER.sub('', context.reply)
 
             verifier = XMLDSIG()
-            verifier.load_cert(self.ca_path)
+
+            # signing cert's CA
+            verifier.load_cert(self.cis_ca_path)
+
+            # signing cert given with KeyInfo
+            verifier.load_key(cert_der, key_format='cert-der')
+
             valid_signature = verifier.verify(reply)
+
         except Exception as exc:
             LOGGER.exception('%s: %s', exc, context.reply)
             context.reply = _fault('Client',
