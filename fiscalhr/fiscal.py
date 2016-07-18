@@ -415,23 +415,11 @@ class XmlDSigMessagePlugin(MessagePlugin):
             else:
                 LOGGER.warning('CIS certificate common name not configured')
 
-            # explicit signing cert CA check
-            if self.cis_ca_path:
-                _verify_cert(cert, self.cis_ca_path)
-            else:
-                LOGGER.warning('CIS certificate CA not configured')
-
             reply = self.DTD_TEST_ID % qname
             reply += self.RE_XML_HEADER.sub('', context.reply)
 
             verifier = XMLDSIG()
-
-            # signing cert's CA
             verifier.load_cert(self.cis_ca_path)
-
-            # signing cert given with KeyInfo
-            verifier.load_key(cert_der, key_format='cert-der')
-
             valid_signature = verifier.verify(reply)
 
         except Exception as exc:
