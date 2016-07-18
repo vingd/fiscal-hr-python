@@ -52,7 +52,7 @@ class Fiscal():
 
         if not ca_path:
             ca_path = resource_path + 'certs/'
-            ca_path += 'democacert.pem' if test else 'RDCca.pem'
+            ca_path += 'democacert.pem' if test else 'FinaRDCChain.pem'
             ca_path = resource_filename(__name__, ca_path)
 
         if not cis_cert_cn:
