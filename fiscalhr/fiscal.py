@@ -363,22 +363,6 @@ class XmlDSigMessagePlugin(MessagePlugin):
                 raise Exception('Invalid certificate common name in response: '
                                 '%s != %s' % (cis_cert_cn, common_name))
 
-        def _verify_cert(cert, issuer_cert_path):
-            '''Verify cert was issued by issuer_cert_path.'''
-
-            try:
-                store = crypto.X509Store()
-
-                with open(issuer_cert_path) as f:
-                    _ca = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
-                    store.add_cert(_ca)
-
-                store_ctx = crypto.X509StoreContext(store, cert)
-                store_ctx.verify_certificate()
-
-            except Exception as e:
-                raise Exception('CIS certificate not issued by CIS CA')
-
         def _fault(code, msg):
             '''Generate fault XML'''
 
