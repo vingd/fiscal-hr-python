@@ -3,5 +3,5 @@ libxml2-python>=2.6.21
 pyOpenSSL>=0.13
 pytz
 pyxmlsec-next>=0.3.1
-suds-philpem>=0.4.3
+suds-jurko>=0.6
 xmldsig>=0.2.1
