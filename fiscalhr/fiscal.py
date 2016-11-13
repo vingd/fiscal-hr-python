@@ -40,7 +40,7 @@ class Fiscal():
 
 
     def __init__(self, key_path, cert_path, key_passphrase=None,
-                 ca_path=None, cis_ca_path=None, cis_cert_cn=None,
+                 ca_path=None, cis_ca_paths=None, cis_cert_cn=None,
                  wsdl_location=None, test=False):
 
         self.default_ns = 'fis'
@@ -55,11 +55,10 @@ class Fiscal():
             ca_path += 'demo2014_chain.pem' if test else 'FinaRDCChain.pem'
             ca_path = resource_filename(__name__, ca_path)
 
-        # FIX: cis still uses old CA, they shall probably switch to `ca_path`
-        if not cis_ca_path:
-            cis_ca_path = resource_path + 'certs/'
-            cis_ca_path += 'old_democacert.pem' if test else 'old_RDCca.pem'
-            cis_ca_path = resource_filename(__name__, cis_ca_path)
+        if not cis_ca_paths:
+            cis_ca_paths = ['old_democacert.pem'] if test else ['FinaRootCa.pem', 'FinaRDC2015.pem']
+            for i, ca_path in enumerate(cis_ca_paths):
+                cis_ca_paths[i] = resource_filename(__name__, resource_path + 'certs/' + ca_path)
 
         if not cis_cert_cn:
             cis_cert_cn = 'fiskalcistest' if test else 'fiskalcis'
@@ -72,7 +71,7 @@ class Fiscal():
         xmldsig_plugin = XmlDSigMessagePlugin(key_path, cert_path,
                                               key_passphrase=key_passphrase,
                                               ca_path=ca_path,
-                                              cis_ca_path=cis_ca_path,
+                                              cis_ca_paths=cis_ca_paths,
                                               cis_cert_cn=cis_cert_cn)
 
         suds_options = {
@@ -277,14 +276,14 @@ class XmlDSigMessagePlugin(MessagePlugin):
     RE_XML_HEADER = re.compile(r'<\?xml\s+.*?\?>', flags=re.I|re.S)
 
     def __init__(self, key_path, cert_path, key_passphrase=None,
-                 ca_path=None, cis_ca_path=None, cis_cert_cn=None):
+                 ca_path=None, cis_ca_paths=None, cis_cert_cn=None):
 
         self.key_path = key_path
         self.cert_path = cert_path
         self.key_passphrase = key_passphrase
 
         self.ca_path = ca_path
-        self.cis_ca_path = cis_ca_path
+        self.cis_ca_paths = cis_ca_paths
         self.cis_cert_cn = cis_cert_cn
 
     def sending(self, context):
@@ -380,7 +379,7 @@ class XmlDSigMessagePlugin(MessagePlugin):
         valid_signature = False
 
         try:
-            if not self.cis_ca_path:
+            if not self.cis_ca_paths:
                 raise Exception('Certificate Authority not defined')
 
             reply_element = Parser().parse(string=context.reply).root()
@@ -403,7 +402,7 @@ class XmlDSigMessagePlugin(MessagePlugin):
             reply += self.RE_XML_HEADER.sub('', context.reply)
 
             verifier = XMLDSIG()
-            verifier.load_cert(self.cis_ca_path)
+            verifier.load_certs(self.cis_ca_paths)
             valid_signature = verifier.verify(reply)
 
         except Exception as exc:
