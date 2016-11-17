@@ -52,13 +52,18 @@ class Fiscal():
 
         if not ca_path:
             ca_path = resource_path + 'certs/'
-            ca_path += 'demo2014_chain.pem' if test else 'FinaRDCChain.pem'
+            ca_path += 'FinaDemoCA2014_Chain.pem' if test else 'FinaRDC2015_Chain.pem'
             ca_path = resource_filename(__name__, ca_path)
 
         if not cis_ca_paths:
-            cis_ca_paths = ['old_democacert.pem'] if test else ['FinaRootCa.pem', 'FinaRDC2015.pem']
-            for i, ca_path in enumerate(cis_ca_paths):
-                cis_ca_paths[i] = resource_filename(__name__, resource_path + 'certs/' + ca_path)
+            if test:
+                cis_ca_paths = ['FinaDemoRootCA.pem', 'FinaDemoCA2014.pem']
+            else:
+                cis_ca_paths = ['FinaRootCA.pem', 'FinaRDC2015.pem']
+
+            for i, path in enumerate(cis_ca_paths):
+                cis_ca_paths[i] = \
+                    resource_filename(__name__, resource_path + 'certs/' + path)
 
         if not cis_cert_cn:
             cis_cert_cn = 'fiskalcistest' if test else 'fiskalcis'
