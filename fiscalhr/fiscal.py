@@ -38,10 +38,10 @@ class Fiscal():
 
     TEST_LOCATION = 'https://cistest.apis-it.hr:8449/FiskalizacijaServiceTest'
 
-
     def __init__(self, key_path, cert_path, key_passphrase=None,
                  ca_path=None, cis_ca_paths=None, cis_cert_cn=None,
-                 wsdl_location=None, test=False):
+                 wsdl_location=None, test=False, sending_log_callback=None,
+                 received_log_callback=None):
 
         self.default_ns = 'fis'
 
@@ -79,11 +79,13 @@ class Fiscal():
                                               cis_ca_paths=cis_ca_paths,
                                               cis_cert_cn=cis_cert_cn)
 
+        xml_message_log_plugin = XmlMessageLogPlugin(sending_log_callback, received_log_callback)
+
         suds_options = {
             'cache': None,
             'prettyxml': True,
             'timeout': 20,
-            'plugins': [xmldsig_plugin],
+            'plugins': [xmldsig_plugin, xml_message_log_plugin],
         }
 
         if test:
@@ -510,3 +512,21 @@ class VerifiedHTTPSHandler(urllib2.HTTPSHandler):
             return CertValidatingHTTPSConnection(host, **full_kwargs)
 
         return self.do_open(http_class_wrapper, req)
+
+
+class XmlMessageLogPlugin(MessagePlugin):
+    """
+    '''Suds message plugin for logging request and response XML body'''
+    """
+
+    def __init__(self, sending_log_callback=None, received_log_callback=None):
+        self.sending_log_callback = sending_log_callback
+        self.received_log_callback = received_log_callback
+
+    def sending(self, context):
+        if self.sending_log_callback is not None:
+            self.sending_log_callback(unicode(context.envelope))
+
+    def received(self, context):
+        if self.received_log_callback is not None:
+            self.received_log_callback(unicode(context.reply))
