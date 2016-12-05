@@ -515,18 +515,18 @@ class VerifiedHTTPSHandler(urllib2.HTTPSHandler):
 
 
 class XmlMessageLogPlugin(MessagePlugin):
-    """
-    '''Suds message plugin for logging request and response XML body'''
-    """
+    '''
+    Suds message plugin for logging request and response XML body
+    '''
 
     def __init__(self, sending_log_callback=None, received_log_callback=None):
         self.sending_log_callback = sending_log_callback
         self.received_log_callback = received_log_callback
 
     def sending(self, context):
-        if self.sending_log_callback is not None:
+        if self.sending_log_callback:
             self.sending_log_callback(unicode(context.envelope))
 
     def received(self, context):
-        if self.received_log_callback is not None:
+        if self.received_log_callback:
             self.received_log_callback(unicode(context.reply))
